@@ -49,6 +49,10 @@ class RTMPOutput(IOutput):
     
     TUNE_VALUES = ['none', 'film', 'animation', 'grain', 'stillimage', 'psnr', 'ssim', 'fastdecode', 'zerolatency']
     AUDIO_CODEC_VALUES = ['lame', 'faac']
+
+    def __init__(self):
+        super(IOutput, self).__init__()
+        self._audio_codec_producer = AudioCodecProducer(self.audio_codec)
     
 	#@brief - RTMP Streaming plugin.
 	# Structure for function was based primarily off the ogg function
@@ -210,7 +214,17 @@ class RTMPOutput(IOutput):
             self.widget.connect(self.combobox_audio_codec, 
                                 QtCore.SIGNAL('currentIndexChanged(const QString&)'), 
                                 self.set_audio_codec)
+
+            audioCodecSettingsButton = QtGui.QToolButton()
+            audioCodecSettingsButton.setText("Settings")
+            configIcon = QtGui.QIcon.fromTheme("preferences-other")
+            audioCodecSettingsButton.setIcon(configIcon)
+            audioCodecSettingsButton.setSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Maximum)
+            audioCodecSettingsButton.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
             
+            layout.addWidget(audioCodecSettingsButton)
+            self.widget.connect(audioCodecSettingsButton, QtCore.SIGNAL('clicked()'), self.show_audio_codec_settings)
+
             #
             # Video Quality
             #
@@ -285,6 +299,10 @@ class RTMPOutput(IOutput):
         self.audio_codec = codec
         self.plugman.set_plugin_option(self.CATEGORY, self.get_config_name(), "Audio Codec", str(self.audio_codec))
         self.plugman.save()
+        self._audio_codec_producer.audio_codec_name = str(self.audio_codec)
+        
+    def show_audio_codec_settings(self):
+        self._audio_codec_producer.get_dialog().show()
         
     def get_properties(self):
         return ['StreamURL', 'AudioQuality', 'VideoBitrate', 'VideoTune', 'AudioCodec']
@@ -317,3 +335,43 @@ class RTMPOutput(IOutput):
         else:
             return "Error: There's no property with such name" 
 
+class AudioCodecProducer(object):
+    def __init__(self, audio_codec_name):
+        self._audio_codec_name = audio_codec_name
+        self.set_codec(audio_codec_name)
+
+    def get_codec(self):
+        return self._audiocodec
+
+    def set_codec(self, audio_codec_name):
+        self._audiocodec = gst.element_factory_make(audio_codec_name, "audiocodec")
+
+    @property
+    def audio_codec_name(self):
+        return self._audio_codec_name
+
+    @audio_codec_name.setter
+    def audio_codec_name(self, audio_codec_name):
+        self._audio_codec_name = audio_codec_name
+        self.set_codec(audio_codec_name)
+
+    def get_dialog(self):
+        self.dialog = QtGui.QDialog()
+        self.dialog.setWindowTitle("%s Audio Codec Options" % self._audio_codec_name)
+
+        self.dialog_layout = QtGui.QFormLayout()
+        self.dialog.setLayout(self.dialog_layout)
+
+        self.field_dict = dict()
+        for name in self._audiocodec.get_property_names():
+            property_label = QtGui.QLabel(name)
+            property_field = QtGui.QLineEdit()
+            self.field_dict[name] = property_field
+            self.dialog_layout.addRow(property_label, property_field)
+
+        self.dialog.closeButton = QtGui.QPushButton("Close")
+        self.dialog_layout.addWidget(self.dialog.closeButton)
+        self.dialog.connect(self.dialog.closeButton, QtCore.SIGNAL('clicked()'), self.dialog.close)
+        self.dialog.setModal(True)
+
+        return self.dialog
