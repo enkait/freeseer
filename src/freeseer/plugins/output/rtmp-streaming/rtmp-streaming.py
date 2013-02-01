@@ -362,12 +362,21 @@ class AudioCodecProducer(object):
         self.dialog_layout = QtGui.QFormLayout()
         self.dialog.setLayout(self.dialog_layout)
 
+        self.scroll_area = QtGui.QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.dialog_layout.addWidget(self.scroll_area)
+
+        self.scrolled_widget = QtGui.QWidget()
+        self.scrolled_widget_layout = QtGui.QFormLayout()
+        self.scrolled_widget.setLayout(self.scrolled_widget_layout)
+        self.scroll_area.setWidget(self.scrolled_widget)
+
         self.field_dict = dict()
         for name in self._audiocodec.get_property_names():
             property_label = QtGui.QLabel(name)
             property_field = QtGui.QLineEdit()
             self.field_dict[name] = property_field
-            self.dialog_layout.addRow(property_label, property_field)
+            self.scrolled_widget_layout.addRow(property_label, property_field)
 
         self.dialog.closeButton = QtGui.QPushButton("Close")
         self.dialog_layout.addWidget(self.dialog.closeButton)
